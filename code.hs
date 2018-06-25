@@ -10,7 +10,7 @@ data Object = Object {text::String, values::(M.Map String Object)}
 getVal :: Object -> String -> Object
 runFunc :: Object -> String -> IO ()
 getVal obj val = unMaybe (M.lookup val (values obj)) (Object "" M.empty) where --TODO: should empty thing be actually empty?
-runFunc x y = putStrLn "" --TODO
+runFunc x y = putStrLn "" --TODO: get func and run it
 
 lineEnders = ";,"
 inlineSymbols = "`~!@#$%^&*-+=|:<>/?"
