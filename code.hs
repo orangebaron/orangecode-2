@@ -19,46 +19,46 @@ areaOpeners = "{[(\"'"
 areaClosers = "}])\"'"
 
 splitLine :: String -> [String]
-splitLine line = splitSymbols $ separateEnclosedAreas "" line where
-  splitSymbols :: [String] -> [String]
-  splitSymbols [line]
-    | (line == "") || (elem (head line) areaOpeners) = [line]
-    | otherwise = S.split (S.dropBlanks $ S.oneOf inlineSymbols) line
-  splitSymbols (x:y) = splitSymbols [x] ++ splitSymbols y
+splitLine line = foldr (\x t -> splitSymbols x ++ t) [] (separateEnclosedAreas "" line)
 
-  separateEnclosedAreas :: [Char] -> String -> [String] --separate areas enclosed by {} [] () "" or ''
-  separateEnclosedAreas closers area
-    | area == "" = []
-    | head area == '\\' = qualifiedJoinOnto closers (doubleHead area) (separateEnclosedAreas closers (doubleTail area))
-    | (elem (head area) areaOpeners) && ((closers == "") || head closers /= respectiveCloser) =
-      joinOnto (head area) (separateEnclosedAreas (respectiveCloser:closers) (tail area))
-    | (closers == "") || (head area /= head closers) = qualifiedJoinOnto closers [head area] (separateEnclosedAreas closers (tail area))
-    | otherwise = joinAreaEnd closers (head area) (separateEnclosedAreas (tail closers) (tail area))
-      where
-        respectiveCloser = areaClosers !! unMaybe (L.elemIndex (head area) areaOpeners) 0
+splitSymbols :: String -> [String] --split away symbols: "a+b" -> ["a","+","b"]; strings starting with areaOpeners are ignored; priorityInlineSymbols are ignored
+splitSymbols line
+  | (line == "") || (elem (head line) areaOpeners) = [line]
+  | otherwise = S.split (S.dropBlanks $ S.oneOf inlineSymbols) line
 
-        doubleHead :: [a] -> [a]
-        doubleHead (x:y:_) = [x,y]
-        doubleHead [x] = [x]
-        doubleHead [] = []
+separateEnclosedAreas :: [Char] -> String -> [String] --separate areas enclosed by {} [] () "" or ''
+separateEnclosedAreas closers area --closers are the symbols that are needed to close the areas: '{'->'}' etc; they stack, with newer ones at the start
+  | area == "" = []
+  | head area == '\\' = qualifiedJoinOnto closers (doubleHead area) (separateEnclosedAreas closers (doubleTail area))
+  | (elem (head area) areaOpeners) && ((closers == "") || head closers /= respectiveCloser) =
+    joinOnto (head area) (separateEnclosedAreas (respectiveCloser:closers) (tail area))
+  | (closers == "") || (head area /= head closers) = qualifiedJoinOnto closers [head area] (separateEnclosedAreas closers (tail area))
+  | otherwise = joinAreaEnd closers (head area) (separateEnclosedAreas (tail closers) (tail area))
+    where
+      respectiveCloser = areaClosers !! unMaybe (L.elemIndex (head area) areaOpeners) 0
 
-        doubleTail :: [a] -> [a]
-        doubleTail (_:_:x) = x
-        doubleTail _ = []
+      doubleHead :: [a] -> [a]
+      doubleHead (x:y:_) = [x,y]
+      doubleHead [x] = [x]
+      doubleHead [] = []
 
-        joinOnto :: Char -> [String] -> [String]
-        joinOnto c (x:y) = (c:x):y
-        joinOnto c []  =  [[c]]
+      doubleTail :: [a] -> [a]
+      doubleTail (_:_:x) = x
+      doubleTail _ = []
 
-        joinAreaEnd :: String -> Char -> [String] -> [String]
-        joinAreaEnd closers x y
-          | length closers == 1 = [x]:y
-          | otherwise = joinOnto x y
+      joinOnto :: Char -> [String] -> [String]
+      joinOnto c (x:y) = (c:x):y
+      joinOnto c []  =  [[c]]
 
-        qualifiedJoinOnto :: String -> String -> [String] -> [String]
-        qualifiedJoinOnto closers before [] = [before]
-        qualifiedJoinOnto closers before after
-          | (elem (head $ head after) areaOpeners) && closers == "" = before:after
-          | otherwise = [before++(head after)]++(tail after)
+      joinAreaEnd :: String -> Char -> [String] -> [String]
+      joinAreaEnd closers x y
+        | length closers == 1 = [x]:y
+        | otherwise = joinOnto x y
+
+      qualifiedJoinOnto :: String -> String -> [String] -> [String]
+      qualifiedJoinOnto closers before [] = [before]
+      qualifiedJoinOnto closers before after
+        | (elem (head $ head after) areaOpeners) && closers == "" = before:after
+        | otherwise = [before++(head after)]++(tail after)
 
 main = putStrLn $ show $ splitLine "!a_b.c!d:e-\"[{]a}]\"a.c+b"
